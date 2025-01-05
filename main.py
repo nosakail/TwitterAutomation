@@ -55,57 +55,55 @@ def search_and_respond():
     
     while True:
         try:
-            # Rechercher les tweets des 7 derniers jours avec max_results
             query = '"recherche d\'un stage" -is:retweet -is:reply lang:fr'
             tweets = client.search_recent_tweets(
                 query=query,
                 max_results=100,
-                tweet_fields=['author_id', 'created_at'],
-                expansions=['author_id']
+                tweet_fields=['author_id', 'created_at']
             )
 
             if tweets.data:
                 print(f"Trouvé {len(tweets.data)} tweets à traiter")
+                tweets_processed = 0
+                
                 for tweet in tweets.data:
                     if tweet.id not in tracker.responded_tweets and tracker.can_tweet():
                         try:
-                            # Attendre 60 secondes entre chaque action pour respecter les limites
-                            time.sleep(60)
+                            # Retweeter et répondre avec un délai minimal
+                            print(f"Traitement du tweet {tweet.id}...")
+                            client.retweet(tweet.id)
+                            time.sleep(2)  # Petit délai entre retweet et réponse
                             
-                            # Retweeter
-                            print(f"Tentative de retweet du tweet {tweet.id}...")
-                            retweet_response = client.retweet(tweet.id)
+                            response = "Bonjour 😊, je vous souhaite beaucoup de succès dans vos recherches ! J'ai retweeté votre post pour vous donner un coup de pouce. Si possible, pourriez-vous faire de même pour mon post épinglé ? Merci infiniment et bon courage dans vos démarches !"
+                            client.create_tweet(
+                                text=response,
+                                in_reply_to_tweet_id=tweet.id
+                            )
                             
-                            # Vérifier si le retweet a réussi
-                            if retweet_response.data['retweeted']:
-                                print("Retweet réussi")
-                                
-                                # Attendre encore 60 secondes avant de répondre
-                                time.sleep(60)
-                                
-                                # Répondre
-                                response = "Bonjour 😊, je vous souhaite beaucoup de succès dans vos recherches de stage ! J'ai retweeté votre post pour vous donner un coup de pouce. Si possible, pourriez-vous faire de même pour mon post épinglé ? Merci infiniment et bon courage dans vos démarches !"
-                                reply_response = client.create_tweet(
-                                    text=response,
-                                    in_reply_to_tweet_id=tweet.id
-                                )
-                                
-                                if reply_response:
-                                    print(f"Réponse envoyée au tweet {tweet.id}")
-                                    tracker.add_tweet(tweet.id)
+                            tracker.add_tweet(tweet.id)
+                            tweets_processed += 1
+                            print(f"Tweet {tweet.id} traité avec succès")
+                            
+                            time.sleep(3)  # Petit délai avant le prochain tweet
                             
                         except tweepy.TooManyRequests:
                             print("Limite de taux atteinte, attente de 15 minutes...")
                             time.sleep(900)
-                            continue
                         except Exception as e:
-                            print(f"Erreur lors de la réponse au tweet {tweet.id}: {str(e)}")
+                            if "You cannot retweet a Tweet that you have already retweeted" in str(e):
+                                print(f"Tweet {tweet.id} déjà retweeté, marqué comme traité")
+                                tracker.add_tweet(tweet.id)
+                                tweets_processed += 1
+                            else:
+                                print(f"Erreur: {str(e)}")
                     
                     if not tracker.can_tweet():
-                        print("Limite quotidienne atteinte, attente de 24h...")
+                        print("Limite quotidienne atteinte (17 tweets/24h)")
                         time.sleep(24 * 3600)
                         break
-
+                
+                print(f"Session terminée : {tweets_processed} tweets traités sur {len(tweets.data)} trouvés")
+            
             print("Attente de 5 minutes avant la prochaine recherche...")
             time.sleep(300)
 
