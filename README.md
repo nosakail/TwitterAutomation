@@ -17,7 +17,7 @@ A free Twitter bot that automatically helps people looking for internships by re
 
 bash
 git clone https://github.com/nosakail/TwitterAutomation.git
-cd twitter-stage-bot
+cd TwitterAutomation
 
 2. Installez les dépendances
 
